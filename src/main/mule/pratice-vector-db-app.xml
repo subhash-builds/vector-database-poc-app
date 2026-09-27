@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+
+<mule xmlns:ms-inference="http://www.mulesoft.org/schema/mule/ms-inference"
+
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+
+	xmlns:ms-vectors="http://www.mulesoft.org/schema/mule/ms-vectors"
+
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+
+http://www.mulesoft.org/schema/mule/ms-vectors http://www.mulesoft.org/schema/mule/ms-vectors/current/mule-ms-vectors.xsd
+
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ms-inference http://www.mulesoft.org/schema/mule/ms-inference/current/mule-ms-inference.xsd">
+
+
+
+	<configuration-properties doc:name="Configuration properties" file="config.yaml" />
+
+
+
+	<ms-vectors:transform-config name="MuleSoft_Vectors_Connector_Transform_config"
+
+		doc:name="MuleSoft Vectors Connector Transform config"
+
+		doc:id="a8c3e1f2-4b5d-6e7f-8a9b-0c1d2e3f4a5b" />
+
+
+
+	<ms-vectors:embedding-config name="MuleSoft_Vectors_Connector_Embedding_config"
+
+		doc:name="MuleSoft Vectors Connector Embedding config"
+
+		doc:id="453fbd4c-0c24-4f8c-b0ac-158f3e82858d">
+
+		<ms-vectors:einstein-connection
+
+			clientId="3MVG9HtWXcDGV.nEr5HGDu7XRdUc3Id4YncmcZ8CHZs3GQnqbR4w21c6_H5rQFTaoJfqDLzLVvB4JfNTIVcS_"
+
+			clientSecret="6E0275C3866D47BF0950FBC7AA4C746013D5459669F03DB28563B4A57ECF641C"
+
+			salesforceOrg="orgfarm-3a0a743741-dev-ed.develop.my.salesforce.com/" />
+
+	</ms-vectors:embedding-config>
+
+
+
+	<ms-vectors:store-config name="MuleSoft_Vectors_Connector_Store_config"
+
+		doc:name="MuleSoft Vectors Connector Store config"
+
+		doc:id="f8a1393f-d53b-439f-aa68-8b555cc55b54">
+
+		<ms-vectors:pg-vector-connection host="localhost" port="5432" database="poc_vectordb"
+
+			user="poc_user" password="poc_pass" />
+
+	</ms-vectors:store-config>
+
+
+
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config"
+
+		doc:id="33d3b76e-1d07-48e6-bc5e-5c4dc1ef9214">
+
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+
+	</http:listener-config>
+
+
+
+	<file:config name="File_Config" doc:name="File Config" doc:id="05e34232-109d-4a50-84d0-0543bb2d6a12" />
+	<ms-vectors:embedding-config name="MuleSoft_Vectors_Connector_Embedding_config1" doc:name="MuleSoft Vectors Connector Embedding config" doc:id="bd638720-bcda-481c-8f67-a21267be939b" >
+		<ms-vectors:ollama-connection baseUrl="http://localhost:11434" />
+	</ms-vectors:embedding-config>
+	<ms-inference:text-generation-config name="MuleSoft_Inference_Text_generation_config" doc:name="MuleSoft Inference Text generation config" doc:id="2aa5dfc3-ded2-42ca-831e-2f4d32a787a9" >
+		<ms-inference:ollama-connection ollamaModelName="llama3.2" apiKey="not-required" timeout="120"/>
+	</ms-inference:text-generation-config>
+	<flow name="vector-ingestion-pipeline" doc:id="1ba2c7f4-a412-4866-923a-2974376fa087">
+
+		<http:listener doc:name="Listener" doc:id="0140eddf-190f-4157-9cd8-d0cf0acb332b"
+
+			config-ref="HTTP_Listener_config" path="/api/v1/vectors/ingest" allowedMethods="POST">
+
+			<http:response statusCode="201">
+
+				<http:body><![CDATA[#[payload]]]></http:body>
+
+			</http:response>
+
+		</http:listener>
+
+		<logger level="INFO" doc:name="start Logger" doc:id="a6511e7f-e5ee-4f6c-a033-ea90c2142fa8"
+
+			message='#["START vector-ingestion-pipeline | store=" ++ p("vectors.store.name") ++ " | file=" ++ p("ingest.document.fileName")]' />
+
+		<file:read doc:name="Read Insurance Policy Doc" doc:id="d1532c73-c60a-413f-bfbb-e632fe9cde9b" config-ref="File_Config" path="C:\Users\tgh_h\AnypointStudio\sep-26\pratice-vector-db-app\src\main\resources\documents\sbi-insurance-policy.pdf"/>
+		<ms-vectors:transform-parse-document doc:name="[Transform] Parse document"
+
+			doc:id="c3d4e5f6-a7b8-4901-c2d3-e4f5a6b7c8d9"
+
+			config-ref="MuleSoft_Vectors_Connector_Transform_config">
+
+			<ms-vectors:document-binary><![CDATA[#[payload]]]></ms-vectors:document-binary>
+
+			<ms-vectors:document-parser-parameters>
+
+				<ms-vectors:multiformat-document-parser-parameters />
+
+			</ms-vectors:document-parser-parameters>
+
+		</ms-vectors:transform-parse-document>
+
+		<ms-vectors:transform-chunk-text doc:name="[Transform] Chunk text"
+
+			doc:id="ac6415d9-b72d-4b3a-a929-80c17297dfbe"
+
+			maxSegmentSizeInChar="${vectors.chunk.maxSegment}"
+
+			maxOverlapSizeInChars="${vectors.chunk.maxOverlap}" />
+
+		<ms-vectors:embedding-generate-from-text doc:name="[Embedding] Generate from text"
+
+			doc:id="5d050078-c160-4a24-9da1-6220c0efe89e"
+
+			config-ref="MuleSoft_Vectors_Connector_Embedding_config1" embeddingModelName="nomic-embed-text"/>
+
+		<ms-vectors:store-add doc:name="[Store] Add" doc:id="90bdc27d-13f7-47df-a36d-8709b0a6c252"
+
+			config-ref="MuleSoft_Vectors_Connector_Store_config" storeName="${vectors.store.name}" />
+
+		<logger level="INFO" doc:name="end Logger" doc:id="84a7971e-4508-46dc-a4c6-d903fa2c1130"
+
+			message='#["END vector-ingestion-pipeline | response=" ++ write(payload, "application/json")]' />
+
+	</flow>
+
+
+
+	<flow name="vector-retrieval-pipeline" doc:id="d212115b-f0d7-454f-b232-e8e03bdadbef">
+
+		<http:listener doc:name="Listener" doc:id="a44577b4-b77d-414b-97c2-35afd0ed284f"
+
+			config-ref="HTTP_Listener_config" path="/api/v1/vectors/query" allowedMethods="POST" />
+
+		<logger level="INFO" doc:name="start Logger" doc:id="1c8e3271-053f-4257-9968-f4a66e75207f"
+
+			message='#[%dw 2.0&#10;output application/java&#10;---&#10;"START vector-retrieval-pipeline | store=" ++ p("vectors.store.name") ++ " | question=" ++ (payload.question default "")]' />
+
+		<set-payload value="#[payload.question default payload]" doc:name="Set query text"
+
+			doc:id="d4e5f6a7-b8c9-4012-d3e4-f5a6b7c8d9e0" />
+
+		<ms-vectors:embedding-generate-from-text doc:name="[Embedding] Generate from text"
+
+			doc:id="93efd011-969e-4e98-ace2-06b86a6cf281"
+
+			config-ref="MuleSoft_Vectors_Connector_Embedding_config1"
+
+			embeddingModelName="nomic-embed-text" >
+			<ms-vectors:inputs ><![CDATA[#[[payload]]]]></ms-vectors:inputs>
+		</ms-vectors:embedding-generate-from-text>
+
+		<ms-vectors:query doc:name="[Store] Query" doc:id="20e0cdf2-f9cd-43c4-a713-8a1df989143c"
+
+			config-ref="MuleSoft_Vectors_Connector_Store_config" storeName="${vectors.store.name}"
+
+			maxResults="${vectors.query.maxResults}" minScore="${vectors.query.minScore}">
+
+			<ms-vectors:text-segment-and-embedding><![CDATA[#[payload]]]></ms-vectors:text-segment-and-embedding>
+
+		</ms-vectors:query>
+		<logger level="INFO" doc:name="end Logger" doc:id="e5ad9745-7e02-45af-bbb3-e20c06b8f558"
+
+			message='#[%dw 2.0&#10;output application/java&#10;---&#10;"END vector-retrieval-pipeline | sources=" ++ sizeOf(payload.sources default []) ++ " | topScore=" ++ ((payload.sources default [])[0].score default "n/a")]' />
+
+	</flow>
+	<flow name="vector-retrieval-pipeline-with-llm-resp" doc:id="ca330214-9457-4964-88f4-a60979b48f3f" >
+		<http:listener doc:name="Listener" doc:id="434e99a8-b86e-47f5-9add-4d33be3c275a" config-ref="HTTP_Listener_config" path="/api/v1/vectors/query/llm" allowedMethods="POST" />
+		<logger level="INFO" doc:name="start Logger" doc:id="675cfe98-3ff4-42fa-a367-d4cdedf21dfb" message='#[%dw 2.0&#10;output application/java&#10;---&#10;"START vector-retrieval-pipeline | store=" ++ p("vectors.store.name") ++ " | question=" ++ (payload.question default "")]' />
+		<set-variable value="#[payload.question default payload]" doc:name="Set query text" doc:id="5330c808-196a-421d-afa2-d055d581a56d" variableName="userQuery"/>
+		<ms-vectors:embedding-generate-from-text embeddingModelName="nomic-embed-text" doc:name="[Embedding] Generate from text" doc:id="6a5fcbbc-2e4e-466f-88a8-08bea4c23116" config-ref="MuleSoft_Vectors_Connector_Embedding_config1" >
+			<ms-vectors:inputs ><![CDATA[#[[vars.userQuery]]]]></ms-vectors:inputs>
+		</ms-vectors:embedding-generate-from-text>
+		<ms-vectors:query doc:name="[Store] Query" doc:id="8d18bf79-2d1e-4d2a-8c36-f3b02f43dda7" config-ref="MuleSoft_Vectors_Connector_Store_config" storeName="${vectors.store.name}" maxResults="${vectors.query.maxResults}" minScore="${vectors.query.minScore}" target="ragOutput" targetValue="#[payload.response]">
+			<ms-vectors:text-segment-and-embedding ><![CDATA[#[payload]]]></ms-vectors:text-segment-and-embedding>
+		</ms-vectors:query>
+		<set-payload value="#[%dw 2.0&#10;output application/json&#10;---&#10;[&#10;  {&#10;    &quot;role&quot;: &quot;system&quot;,&#10;    &quot;content&quot;: &quot;You are a helpful and professional healthcare policy assistant.&#10;    **Answer the user's question ONLY based on the provided Context below.**&#10;    If the Context does not contain the answer, politely state that the information is not available in the provided documents.&quot;&#10;  },&#10;  {&#10;    &quot;role&quot;: &quot;user&quot;,&#10;    &quot;content&quot;: &quot;Context: ----- &quot; ++ vars.ragOutput ++ &quot;----- User Question: &quot; ++ vars.userQuery&#10;  }&#10;]]" doc:name="Set Payload" doc:id="152b007e-2269-40a3-b4e3-cde9911f2838" />
+		<ms-inference:chat-completions doc:name="Call LLM" doc:id="a0cbc478-c439-4758-9bc5-71e7885bc70e" config-ref="MuleSoft_Inference_Text_generation_config" />
+		<logger level="INFO" doc:name="end Logger" doc:id="419d502b-4452-46c2-b277-44e456b17c2b" message='#[%dw 2.0&#10;output application/java&#10;---&#10;"END vector-retrieval-pipeline | sources=" ++ sizeOf(payload.sources default []) ++ " | topScore=" ++ ((payload.sources default [])[0].score default "n/a")]' />
+	</flow>
+
+</mule>
+
+

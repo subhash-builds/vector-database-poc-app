@@ -1,0 +1,14 @@
+http:
+  port: "8081"
+
+vectors:
+  store:
+    name: "insurance_policies_250926"
+
+  chunk:
+    maxSegment: "1500"
+    maxOverlap: "150"
+  query:
+    maxResults: "5"
+    minScore: "0.75"
+
